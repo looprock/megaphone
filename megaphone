@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+import json
+import sys
+import os
+from bottle import route, run, get, abort
+import time
+import urllib2, urllib
+
+t = time.localtime()
+ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
+
+# Change working directory so relative paths (and template lookup) work again
+root = os.path.join(os.path.dirname(__file__))
+sys.path.insert(0, root)
+
+# this should be a dynamic list:
+services = {
+	"service1": "http://localhost:8081/q/status",
+	"service2": "http://localhost:8082/q/status",
+}
+
+# generate nested python dictionaries, copied from here:
+# http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
+class AutoVivification(dict):
+        """Implementation of perl's autovivification feature."""
+        def __getitem__(self, item):
+                try:
+                        return dict.__getitem__(self, item)
+                except KeyError:
+                        value = self[item] = type(self)()
+                        return value
+
+def readfile(fname):
+    try:
+            f = open(fname, 'r')
+            o = f.read()
+            return re.sub(r'\0',' ',o)
+            f.close()
+    except:
+        msg = "ERROR: reading %s failed!" % fname
+        return msg
+
+def readstatus(url):
+        try:   
+		data = json.load(urllib2.urlopen(url))
+                return data
+        except:
+	        pdata = AutoVivification()
+                pdata['status'] = "ERROR"
+                pdata['date'] = ts
+		msg = "Unable to communicate with %s!" % url
+                pdata['message'] = msg
+		return pdata
+
+@get('/q/list')
+def list():
+	data = AutoVivification()
+	data['services'] = services.keys()
+	return data
+
+@get('/q/service/:s')
+def service(s):
+	return readstatus(services[s])
+
+	
+
+
+@get('/q/status')
+def status():
+	data = AutoVivification()
+	# trying to conform to current monitoring status guidelines
+	# http://nagiosplug.sourceforge.net/developer-guidelines.html#PLUGOUTPUT
+	status = {
+	"Warning":  0,
+	"Critical":  0,
+	"Unknown":  0,
+	}
+	E = 0
+	msg = ""
+	for i in services.keys():
+		# for all services we're monitoring, capture the state and the message
+		# figure out something to do with date testing
+		# like throw an error if current date is > 5min from returned date
+		x = readstatus(services[i])
+		if x['status'] == "Warning":
+			status['Warning'] = status['Warning'] + 1
+			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+		elif x['status'] == "Critical":
+			status['Critical'] = status['Critical'] + 1
+			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+		elif x['status'] == "OK":
+			# Throw it away
+			throwaway = "ok"
+                else:
+			# things aren't Warning, Critical, or OK so something else is going on
+                        status['Unknown'] = status['Unknown'] + 1
+			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+
+	# set the status to the most critical value in the order: Unknown, Warning, Critical
+	# i.e. if WARNING is the worst issue, i present that, but if ERROR and WARNING are both present use ERROR
+	if status['Unknown'] > 0:
+		data['status'] = "Unknown"
+		E = 1
+	if status['Warning'] > 0:
+		data['status'] = "Warning"
+		E = 1
+	if status['Critical'] > 0:
+		data['status'] = "Critical"
+		E = 1
+	
+	# trim the value of msg since we're appending and adding ';' at the end for errors
+	if E > 0:
+        	data['message'] = msg[:-1]
+	else:
+		# we didn't find any error states, so we're OK
+                data['status'] = "OK"
+                data['message'] = "Everything is OK!"
+	data['date'] = ts
+	return data
+		
+
+run(host='localhost', port=8080, debug=True)
