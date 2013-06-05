@@ -4,6 +4,17 @@ import sys
 import os
 from bottle import route, run, get
 import time
+import urllib2
+import urllib
+import httplib
+
+data = json.dumps({'name': 'foo', 'url': 'http://localhost:8082/q/status'})
+#data = urllib.urlencode(data)
+url = "http://localhost:8080/service/add"
+req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
+f = urllib2.urlopen(req)
+response = f.read()
+f.close()
 
 def usage():
 	print "%s [status: OK,Unknown,Warning,Critical]" % (sys.argv[0])
@@ -53,7 +64,7 @@ def status():
 	data = AutoVivification()
 	#data['status'] = readfile(rootdir + '/test/status.txt')
 	#data['status'] = readfile('./test/status.txt')
-	data['name'] = "service2"
+	data['name'] = "foo"
 	data['status'] = statusm
 	data['date'] = ts
 	data['message'] = "Houston, I think we have a problem."

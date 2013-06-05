@@ -2,7 +2,7 @@
 import json
 import sys
 import os
-from bottle import route, run, get, abort
+from bottle import route, run, get, abort, post, request
 import time
 import urllib2, urllib
 
@@ -14,10 +14,7 @@ root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
 # this should be a dynamic list:
-services = {
-	"service1": "http://localhost:8081/q/status",
-	"service2": "http://localhost:8082/q/status",
-}
+services = {}
 
 # generate nested python dictionaries, copied from here:
 # http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
@@ -46,31 +43,59 @@ def readstatus(url):
                 return data
         except:
 	        pdata = AutoVivification()
+		#pdata = {}
                 pdata['status'] = "ERROR"
                 pdata['date'] = ts
 		msg = "Unable to communicate with %s!" % url
                 pdata['message'] = msg
 		return pdata
 
-@get('/q/list')
+@get('/service/list')
 def list():
 	data = AutoVivification()
-	data['services'] = services.keys()
-	return data
+	return services
 
-@get('/q/service/:s')
+@post('/service/add')
+def add_submit():
+        data = request.body.readline()
+        if not data:
+                abort(400, 'No data received')
+        entity = json.loads(data)
+        if not entity.has_key('name'):
+                abort(400, 'No name specified')
+        try:
+		services[entity["name"]] = entity["url"]
+        except:
+                #except ValidationError as ve:
+                #abort(400, str(ve))
+                abort(400, "ouch")
+
+@post('/service/del')
+def delservice():
+        data = request.body.readline()
+        if not data:
+                abort(400, 'No data received')
+        entity = json.loads(data)
+        if not entity.has_key('name'):
+                abort(409, 'No name specified')
+        try:
+		del services[entity["name"]]
+        except:
+                abort(400, "ouch")
+
+@get('/service/show/:s')
 def service(s):
+	#data = AutoVivification()
+	#data = readstatus(services[s])
 	return readstatus(services[s])
+	#return data
 
-	
-
-
-@get('/q/status')
+@get('/status')
 def status():
 	data = AutoVivification()
 	# trying to conform to current monitoring status guidelines
 	# http://nagiosplug.sourceforge.net/developer-guidelines.html#PLUGOUTPUT
-	status = {
+	statusc = {
 	"Warning":  0,
 	"Critical":  0,
 	"Unknown":  0,
@@ -83,28 +108,28 @@ def status():
 		# like throw an error if current date is > 5min from returned date
 		x = readstatus(services[i])
 		if x['status'] == "Warning":
-			status['Warning'] = status['Warning'] + 1
-			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+			statusc['Warning'] = statusc['Warning'] + 1
+			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
 		elif x['status'] == "Critical":
-			status['Critical'] = status['Critical'] + 1
-			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+			statusc['Critical'] = statusc['Critical'] + 1
+			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
 		elif x['status'] == "OK":
 			# Throw it away
 			throwaway = "ok"
                 else:
 			# things aren't Warning, Critical, or OK so something else is going on
-                        status['Unknown'] = status['Unknown'] + 1
-			msg += "%s:%s:%s|" % (x['name'],x['status'],x['message'])
+                        statusc['Unknown'] = statusc['Unknown'] + 1
+			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
 
 	# set the status to the most critical value in the order: Unknown, Warning, Critical
 	# i.e. if WARNING is the worst issue, i present that, but if ERROR and WARNING are both present use ERROR
-	if status['Unknown'] > 0:
+	if statusc['Unknown'] > 0:
 		data['status'] = "Unknown"
 		E = 1
-	if status['Warning'] > 0:
+	if statusc['Warning'] > 0:
 		data['status'] = "Warning"
 		E = 1
-	if status['Critical'] > 0:
+	if statusc['Critical'] > 0:
 		data['status'] = "Critical"
 		E = 1
 	
@@ -112,9 +137,13 @@ def status():
 	if E > 0:
         	data['message'] = msg[:-1]
 	else:
-		# we didn't find any error states, so we're OK
-                data['status'] = "OK"
-                data['message'] = "Everything is OK!"
+		if len(services.keys()) > 0:
+			# we didn't find any error states, so we're OK
+                	data['status'] = "OK"
+                	data['message'] = "Everything is OK!"
+		else:
+			data['status'] = "Unknown"
+                	data['message'] = "No services are registered!"
 	data['date'] = ts
 	return data
 		
