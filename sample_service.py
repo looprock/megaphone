@@ -7,7 +7,7 @@ import time
 import urllib
 import urllib2
 
-data = json.dumps({'name': 'bar', 'url': 'http://localhost:8081/q/status'})
+data = json.dumps({'id': 'bar', 'url': 'http://localhost:8081/q/status'})
 #data = urllib.urlencode(data)
 url = "http://localhost:8080/service/add"
 req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
@@ -63,7 +63,7 @@ def status():
 	data = AutoVivification()
 	#data['status'] = readfile(rootdir + '/test/status.txt')
 	#data['status'] = readfile('./test/status.txt')
-	data['name'] = "bar"
+	data['id'] = "bar"
 	data['status'] = statusm
 	data['date'] = ts
 	data['message'] = "OZMG stuff is broken!"
