@@ -9,23 +9,23 @@ A) Any service that is registered or discovered on a box will instantly be monit
 
 B) Operations will always know how to monitor a new system
 
-Who talks to megaphone?
+## Who talks to megaphone?
 
 The intended targets of this data are things like monitoring systems and load-balancers. 
 
-Why JSON?
+## Why JSON?
 
 By using object based data, application developers can add or remove fields they care about without effecting the operations of megaphone.
 
-Why a local service?
+## Why a local service?
 
 By running this locally you get access to process lists and local commands for things like auto-discovery. This also allows you access to local services data and commands without running through additional proxies or worrying about remote execution.
 
-What about centralizing the data?
+## What about centralizing the data?
 
 Megaphone can be used push data to any central store you'd like to use. The initial target will be zookeeper, but it could just as easily be pushed or pulled into a nosql, RDBMS, or other solution.
 
-How do I use Megaphone?
+## How do I use Megaphone?
 
 You can start megaphone by navigating to the directory it lives in and typing ./megaphone. It's packaged with bottle.py which is it's primary dependency. If you'd like to run it in a more production-ready manner you can use supervisor to manage it as a service.
 
