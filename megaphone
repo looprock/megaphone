@@ -15,7 +15,7 @@ root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
 # this should be a dynamic list:
-cache = "/Users/dsl/code/bottle/Megaphone/cache.json"
+cache = "/tmp/cache.json"
 if os.path.isfile(cache) == True:
 	with open(cache) as data_file:    
     		checks = json.load(data_file)
