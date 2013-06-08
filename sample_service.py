@@ -66,7 +66,7 @@ def status():
 	data['id'] = "bar"
 	data['status'] = statusm
 	data['date'] = ts
-	data['message'] = "OZMG stuff is broken!"
+	data['message'] = "Everything is groovy man."
 	data['version'] = "1.0.0"
 	return data
 
