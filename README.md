@@ -6,6 +6,7 @@ Megaphone is a bottle.py based service that is intended to proxy and collate JSO
 The idea is to provide a per system consistent API for checking the status of all services on that system. This means:
 
 A) Any service that is registered or discovered on a box will instantly be monitored
+
 B) Operations will always know how to monitor a new system
 
 Who talks to megaphone?
@@ -36,36 +37,68 @@ Below is an example session.
 
 ----------------------------------
 
-Megaphone Session:
+# Megaphone Session
+
+## Check initial status
 
 GET: http://localhost:8080/status
+
 RESULT: {"status": "Unknown", "date": "2013-06-06T14:49:26CDT", "message": "No services are registered!"}
 
-GET: http://localhost:8080/check/list:
+## List current checks
+
+GET: http://localhost:8080/check/list
+
 RESULT: {}
 
-# initiate this by using: ./sample_service.py OK
+## Add a check
+
+initiate this by using: ./sample_service.py OK
+
 PUT: http://localhost:8080/check/add
+
 DATA: {"id": "bar", "url": "http://localhost:8081/q/status"}
 
+## Verify check
+
 GET: http://localhost:8080/check/list
+
 RESULT: {"bar": "http://localhost:8081/q/status"}
 
+## Check new status
+
 GET: http://localhost:8080/status
+
 RESULT: {"status": "OK", "date": "2013-06-06T14:49:26CDT", "message": "Everything is OK!"}
 
-# initiate this by using: ./sample_service2.py Warning
+## Add another check
+
+initiate this by using: ./sample_service2.py Warning
+
 PUT: http://localhost:8080/check/add
+
 DATA: {"id": "foo", "url": "http://localhost:8082/q/status"}
 
+## Verify new check
+
 GET: http://localhost:8080/check/list
+
 RESULT: {"foo": "http://localhost:8082/q/status", "bar": "http://localhost:8081/q/status"
 
+## Review new status
+
 GET: http://localhost:8080/status
+
 RESULT: {"status": "Warning", "date": "2013-06-06T14:49:26CDT", "message": "foo:Warning:Houston, I think we have a problem."}
 
+## View full status from check 'foo'
+
 GET: http://localhost:8080/check/show/foo:
+
 RESULT: {"status": "Warning", "date": "2013-06-06T14:54:21CDT", "message": "Houston, I think we have a problem.", "version": "2.0.0", "id": "foo"}
 
+## View full status from check 'bar'
+
 GET: http://localhost:8080/check/show/bar:
+
 RESULT: {"status": "OK", "date": "2013-06-06T14:51:56CDT", "message": "Everything is groovy man.", "version": "1.0.0", "id": "bar"}
