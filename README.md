@@ -1,7 +1,7 @@
 Megaphone
 =========
 
-Megaphone is a bottle.py based service that is intended to proxy and collate JSON based status data in a centralized interface.
+Megaphone is a bottle.py based service that is intended to proxy and collate JSON based status data in a centralized service.
 
 The idea is to provide a per system consistent API for checking the status of all services on that system. This means:
 
