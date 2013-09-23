@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+import json
+import sys
+import os
+from bottle import route, run, get
+import time
+import urllib
+import urllib2
+import socket
+import re
+import subprocess
+import shlex
+from ConfigParser import SafeConfigParser
+
+debug = 'F'
+statname = "ok"
+statport = "18999"
+
+def bug(msg):
+        if debug == 'T':
+                print "DEBUG: %s" % msg
+
+
+#host = socket.gethostname()
+#staturl = "http://%s:%s/status" % (host,statport)
+#blob = {"id": statname, "url": staturl}
+#
+#data = json.dumps(blob)
+#url = "http://localhost:18001/check/add"
+#req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
+#f = urllib2.urlopen(req)
+#response = f.read()
+#f.close()
+
+t = time.localtime()
+ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
+rootdir = "/opt/megaphone"
+
+# Change working directory so relative paths (and template lookup) work again
+root = os.path.join(os.path.dirname(__file__))
+sys.path.insert(0, root)
+
+def runcom(command_line):
+        process = subprocess.Popen(shlex.split(command_line), stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+        out, error = process.communicate()
+        return out
+
+def listsearch(string, list):
+	result = []
+	for l in list:
+		s = re.search(string, l)
+		if s != None:
+			result.append(l)
+	return result
+
+def test(command, search, count):
+	result = 0
+	t = runcom(command).split('\n')
+	c = listsearch(search, t)
+	if len(c) < count:
+		result = 1
+	return result
+	
+
+# generate nested python dictionaries, copied from here:
+# http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
+class AutoVivification(dict):
+        """Implementation of perl's autovivification feature."""
+        def __getitem__(self, item):
+                try:
+                        return dict.__getitem__(self, item)
+                except KeyError:
+                        value = self[item] = type(self)()
+                        return value
+def tests():
+	result = { "status": "OK", "message": "Everything is OK!" }
+	return result
+		
+@get('/status')
+def status():
+	result = tests()
+	data = AutoVivification()
+	data['id'] = statname
+	data['status'] = result["status"]
+	data['date'] = ts
+	data['message'] = result["message"]
+	return data
+
+run(host='0.0.0.0', port=statport, debug=True)

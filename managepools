@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+import json
+import sys
+import os
+import urllib
+import urllib2
+import socket
+import getopt
+
+debug = 'F'
+statname = "ok"
+statport = "18999"
+
+def bug(msg):
+        if debug == 'T':
+                print "DEBUG: %s" % msg
+
+def usage():
+  print sys.argv[0] + """ [options] [appname]
+  options:
+
+  -h/--help         -  print usage summary
+  -a/--add          -  add to a pool
+  -d/--del          -  delete from a pool
+"""
+
+add = "False"
+delete = "False"
+
+try:                                
+    opts, remainder = getopt.gnu_getopt(sys.argv[1:], "had", ["help", "add=", "del="])
+except getopt.GetoptError:          
+    usage()                         
+    sys.exit(2)                     
+for opt, arg in opts:                
+    if opt in ("-h", "--help"):      
+        usage()                     
+        sys.exit()                  
+    elif opt in ("-d", "--del"):
+        delete = "True"
+    elif opt in ("-a", "--add"):
+        add = "True"
+
+if len(remainder) < 1:
+	usage()
+	sys.exit()
+
+if ( add == "True" and delete == "True" ):
+	print "ERROR: you can only add OR delete a pool!"
+	usage()
+	sys.exit()
+
+if add == "True":
+	host = socket.gethostname()
+	staturl = "http://%s:%s/status" % (host,statport)
+	blob = {"id": remainder[0], "url": staturl}
+	data = json.dumps(blob)
+	url = "http://localhost:18001/check/add"
+	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
+	f = urllib2.urlopen(req)
+	response = f.read()
+	print response
+	f.close()
+
+if delete == "True":
+	host = socket.gethostname()
+        staturl = "http://%s:%s/status" % (host,statport)
+        blob = {"id": remainder[0], "url": staturl}
+	data = json.dumps(blob)
+	url = "http://localhost:18001/check/del"
+	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
+	f = urllib2.urlopen(req)
+        response = f.read()
+        print response
+        f.close()
