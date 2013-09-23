@@ -75,7 +75,7 @@ if delete == "True":
                 host = server
                 url = "http://%s:18001/check/del" % server
         else:
-                url = "http://localhost:18001/check/add"
+                url = "http://localhost:18001/check/del"
                 host = socket.gethostname()
         staturl = "http://%s:%s/status" % (host,statport)
         blob = {"id": remainder[0], "url": staturl}
