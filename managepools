@@ -22,13 +22,15 @@ def usage():
   -h/--help         -  print usage summary
   -a/--add          -  add to a pool
   -d/--del          -  delete from a pool
+  -s/--server       -  run add/delete against a server
 """
 
 add = "False"
 delete = "False"
+server = "Null"
 
 try:                                
-    opts, remainder = getopt.gnu_getopt(sys.argv[1:], "had", ["help", "add=", "del="])
+    opts, remainder = getopt.gnu_getopt(sys.argv[1:], "hads:", ["help", "add=", "del=", "server="])
 except getopt.GetoptError:          
     usage()                         
     sys.exit(2)                     
@@ -40,6 +42,8 @@ for opt, arg in opts:
         delete = "True"
     elif opt in ("-a", "--add"):
         add = "True"
+    elif opt in ("-s", "--server"):
+	server = arg
 
 if len(remainder) < 1:
 	usage()
@@ -51,11 +55,15 @@ if ( add == "True" and delete == "True" ):
 	sys.exit()
 
 if add == "True":
-	host = socket.gethostname()
+	if server != "Null":
+		host = server
+		url = "http://%s:18001/check/add" % server
+	else:
+		url = "http://localhost:18001/check/add"
+		host = socket.gethostname()
 	staturl = "http://%s:%s/status" % (host,statport)
 	blob = {"id": remainder[0], "url": staturl}
 	data = json.dumps(blob)
-	url = "http://localhost:18001/check/add"
 	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
 	f = urllib2.urlopen(req)
 	response = f.read()
@@ -63,11 +71,15 @@ if add == "True":
 	f.close()
 
 if delete == "True":
-	host = socket.gethostname()
+        if server != "Null":
+                host = server
+                url = "http://%s:18001/check/del" % server
+        else:
+                url = "http://localhost:18001/check/add"
+                host = socket.gethostname()
         staturl = "http://%s:%s/status" % (host,statport)
         blob = {"id": remainder[0], "url": staturl}
 	data = json.dumps(blob)
-	url = "http://localhost:18001/check/del"
 	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
 	f = urllib2.urlopen(req)
         response = f.read()
