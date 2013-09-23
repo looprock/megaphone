@@ -168,4 +168,4 @@ def status():
 	return data
 		
 
-run(host='localhost', port=8080, debug=True)
+run(host='localhost', port=18001, debug=True)
