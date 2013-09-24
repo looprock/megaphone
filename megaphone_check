@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+import json
+import sys
+import os
+import urllib2, urllib
+import time
+import getopt
+
+logging = "False"
+
+t = time.localtime()
+ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
+
+def usage():
+  print sys.argv[0] + """ -i [ipaddr/hostname] -c [check]
+  options:
+
+  -h/--help         -  print usage summary
+  -i/--ipaddr       -  ip/hostname to test
+  -c/--check        -  Optional: specific check to test 
+"""
+
+if logging == "True":
+	logfile = '/tmp/megaphone_check.log'
+	try:
+		log = open(logfile, 'a')
+	except:
+		sys.exit("ERROR: Unable to write to log!")
+
+	c = 0
+	for i in sys.argv:
+		log.write("arg %s: %s\n" % (str(c), sys.argv[c]))
+		c = c + 1
+ipaddr = "Null"
+check = "Null"
+
+try:                                
+    opts, remainder = getopt.gnu_getopt(sys.argv[1:], "hi:c:", ["help", "ipaddr=", "check="])
+except getopt.GetoptError:          
+    usage()                         
+    sys.exit(2)                     
+for opt, arg in opts:                
+    if opt in ("-h", "--help"):      
+        usage()                     
+        sys.exit()                  
+    elif opt in ("-i", "--ipaddr"):
+        ipaddr = arg
+    elif opt in ("-c", "--check"):
+        check = arg
+
+if ipaddr == "Null":
+	usage()
+	sys.exit()
+
+# generate nested python dictionaries, copied from here:
+# http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
+class AutoVivification(dict):
+        """Implementation of perl's autovivification feature."""
+        def __getitem__(self, item):
+                try:
+                        return dict.__getitem__(self, item)
+                except KeyError:
+                        value = self[item] = type(self)()
+                        return value
+
+def readstatus(url):
+        try:   
+                data = json.load(urllib2.urlopen(url))
+                return data
+        except:
+                pdata = AutoVivification()
+                pdata['status'] = "Critical"
+                pdata['date'] = ts
+                msg = "Unable to communicate with %s!" % url
+                pdata['message'] = msg
+                return pdata
+
+if check == "Null":
+	url = "http://%s:18001/status" % (ipaddr)
+else:
+	url = "http://%s:18001/check/show/%s" % (ipaddr, check)
+
+data = readstatus(url)
+
+if logging == "True":
+        log.write('url: %s\n' % url)
+	log.write('status: %s\n' % data['status'])
+
+if data['status'] == "OK":
+	print "INFO: %s" % data['message']
+	sys.exit(0)
+else:
+	print "%s: %s" % (data['status'], data['message'])
+	sys.exit(1)
+
+if logging == "True":
+	log.close()
