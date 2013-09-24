@@ -54,6 +54,11 @@ if ( add == "True" and delete == "True" ):
 	usage()
 	sys.exit()
 
+if ( add == "False" and delete == "False" ):
+        print "ERROR: you must either add OR delete a pool!"
+        usage()
+        sys.exit()
+
 if add == "True":
 	if server != "Null":
 		host = server
