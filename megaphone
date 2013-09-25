@@ -128,18 +128,30 @@ def status():
 		# like throw an error if current date is > 5min from returned date
 		x = readstatus(checks[i])
 		if x['status'] == "Warning":
+			if 'message' not in x.keys():
+				mymsg = 'Detected Warning state [no message specified]'
+			else:
+				mymsg = x['message']
 			statusc['Warning'] = statusc['Warning'] + 1
-			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
+			msg += "%s:%s:%s|" % (i,x['status'],mymsg)
 		elif x['status'] == "Critical":
+			if 'message' not in x.keys():
+                                mymsg = 'Detected Critical state [no message specified]'
+                        else:
+                                mymsg = x['message']
 			statusc['Critical'] = statusc['Critical'] + 1
-			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
+			msg += "%s:%s:%s|" % (i,x['status'],mymsg)
 		elif x['status'] == "OK":
 			# Throw it away
 			throwaway = "ok"
                 else:
+			if 'message' not in x.keys():
+                                mymsg = 'Detected Unknown state [no message specified]'
+                        else:
+                                mymsg = x['message']
 			# things aren't Warning, Critical, or OK so something else is going on
                         statusc['Unknown'] = statusc['Unknown'] + 1
-			msg += "%s:%s:%s|" % (i,x['status'],x['message'])
+			msg += "%s:%s:%s|" % (i,x['status'],mymsg)
 
 	# set the status to the most critical value in the order: Unknown, Warning, Critical
 	# i.e. if WARNING is the worst issue, i present that, but if ERROR and WARNING are both present use ERROR
