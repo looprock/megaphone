@@ -26,11 +26,9 @@ def writecache(data):
 	try:
 		if os.path.isfile(cache) == True:
 			backup = "%s.backup" % cache
-			print "INFO: backing up cache"
 			shutil.copyfile(cache, backup)
-		print "INFO: creating new cache"
 		with open(cache, 'w') as outfile:
-           		json.dump(checks, outfile)
+           		json.dump(data, outfile)
 	except:
 		print "ERROR: cache creation failed!"
 
