@@ -6,6 +6,65 @@ from bottle import route, run, get, abort, post, request
 import time
 import urllib2, urllib
 import shutil
+import socket
+from ConfigParser import SafeConfigParser
+
+debug = "false"
+
+def bug(msg):
+        if debug == 'true':
+                print "DEBUG: %s" % msg
+
+# zookeeper reporting
+# if we find ./zk.conf or /etc/zktools/zk.conf, we should try to report to zookeeper
+enablezk = "false"
+if os.path.exists('./zk.conf'):
+   enablezk = "true"
+   bug("using config ./zk.conf")
+   parser = SafeConfigParser()
+   parser.read('./zk.conf')  
+elif os.path.exists('/etc/zktools/zk.conf'):
+   enablezk = "true"
+   bug("Using config /etc/zktools/zk.conf")
+   parser = SafeConfigParser()
+   parser.read('/etc/zktools/zk.conf')
+
+if enablezk == "true":
+	from kazoo.client import KazooClient
+	from kazoo.retry import KazooRetry
+	from kazoo.exceptions import KazooException
+	env = parser.get('default', 'env').strip()
+	zkserver = parser.get(env, 'server').strip()
+	zkport = parser.get(env, 'port').strip()
+	zkroot = parser.get(env, 'root').strip()
+	server = "%s:%s" % (zkserver,zkport)
+	host = socket.gethostname()
+	kr = KazooRetry(max_tries=3)
+	zk = KazooClient(hosts=server)
+
+	def loadzk(data):
+		if debug == "true":
+			print data
+		zk.start()
+		for i in data.keys():
+			if debug == "true":
+				print data[i]
+			path = '%s/envs/%s/applications/%s/content/servers/%s/megaphone/url' % (zkroot, env, i, host)
+                	if kr(zk.exists, path) == None:
+                        	try:
+                                	kr(zk.create, path, value=str(data[i]), makepath=True)
+                        	except KazooException:
+                                	cancelled = False
+                                	raise
+		zk.stop()
+else:
+	# if zookeeper is disabled, just output if debug == true
+	def loadzk(data):
+		bug("zookeeper support not enabled, not submitting zNode data for record:")
+		if debug == "true":
+			print data
+
+# end zookeeper reporting
 
 t = time.localtime()
 ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
@@ -14,13 +73,24 @@ ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
 root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
-# this should be a dynamic list:
-cache = "/tmp/cache.json"
+if os.path.isdir("/opt/megaphone/cache"):
+	cache = "/opt/megaphone/cache/cache.json"
+else:
+	cache = "/tmp/cache.json"
+
 if os.path.isfile(cache) == True:
+	bug("cache: %s" % cache)
 	with open(cache) as data_file:    
     		checks = json.load(data_file)
+		loadzk(checks)
 else:
 	checks = {}
+
+# we shouldn't write to tmp by default because our cache.json could get deleted by tmpwatch, etc.
+if cache == "/tmp/cache.json":
+	# i was originally going to use the --global override to inject a message, but decided against it
+	# checks['--global'] = "ERROR: cache set to %s, will likely get clobbered by tmpwatch!" % cache
+	print "WARNING: cache set to %s, could get clobbered by tmpwatch!" % cache
 
 def writecache(data):
 	try:
@@ -29,8 +99,12 @@ def writecache(data):
 			shutil.copyfile(cache, backup)
 		with open(cache, 'w') as outfile:
            		json.dump(data, outfile)
+			loadzk(data)
 	except:
+		# it's bad news if we can't create a cache file to reload on restart, throw an error in megaphone!
 		print "ERROR: cache creation failed!"
+		checks['--global'] = "ERROR: cache creation failed!"
+		writecache(checks)
 
 # generate nested python dictionaries, copied from here:
 # http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
@@ -42,7 +116,7 @@ class AutoVivification(dict):
                 except KeyError:
                         value = self[item] = type(self)()
                         return value
-
+# read a file
 def readfile(fname):
     try:
             f = open(fname, 'r')
@@ -53,6 +127,7 @@ def readfile(fname):
         msg = "Critical: reading %s failed!" % fname
         return msg
 
+# read a megaphone compatable status url and return the object
 def readstatus(url):
         try:   
 		data = json.load(urllib2.urlopen(url))
@@ -66,11 +141,13 @@ def readstatus(url):
                 pdata['message'] = msg
 		return pdata
 
+# list all megaphone checks
 @get('/check/list')
 def list():
 	data = AutoVivification()
 	return checks
 
+# add a check: {"id": "ok_status", "url": "http://localhost:18999/status"}
 @post('/check/add')
 def add_submit():
         data = request.body.readline()
@@ -83,10 +160,9 @@ def add_submit():
 		checks[entity["id"]] = entity["url"]
 		writecache(checks)
         except:
-                #except ValidationError as ve:
-                #abort(400, str(ve))
-                abort(400, "ouch")
+                abort(400, "Error adding new check!")
 
+# delete a check: {"id": "ok_status"}
 @post('/check/del')
 def delcheck():
         data = request.body.readline()
@@ -99,8 +175,9 @@ def delcheck():
 		del checks[entity["id"]]
                 writecache(checks)
         except:
-                abort(400, "ouch")
+                abort(400, "Error deleting check!")
 
+# proxy the response of a status url megaphone is checking
 @get('/check/show/:s')
 def checkshow(s):
 	#data = AutoVivification()
@@ -108,9 +185,18 @@ def checkshow(s):
 	return readstatus(checks[s])
 	#return data
 
+# generate the main status output
 @get('/status')
 def status():
-	data = AutoVivification()
+  data = AutoVivification()
+  # setting a global override. If there is a check with the id '--global', only respect that. Always return Critical with a message of whatever is in the url object
+  if "--global" in checks.keys():
+	data['status'] = "Critical"
+	data['message'] = checks['--global']
+	data['date'] = ts
+        return data
+  # if there's no global override, parse the rest of the checks.
+  else:
 	# trying to conform to current monitoring status guidelines
 	# http://nagiosplug.sourceforge.net/developer-guidelines.html#PLUGOUTPUT
 	statusc = {
@@ -178,4 +264,4 @@ def status():
 	return data
 		
 
-run(host='localhost', port=18001, debug=True)
+run(host='0.0.0.0', port=18001, debug=True)
