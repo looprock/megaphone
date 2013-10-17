@@ -26,8 +26,13 @@ By running this locally you get access to process lists and local commands for t
 Megaphone can be used push data to any central store you'd like to use. The initial target will be zookeeper, but it could just as easily be pushed or pulled into a nosql, RDBMS, or other solution.
 
 ## How do I use Megaphone?
+Install the requirements with pip lile
+ pip install -r requirements.txt
 
-You can start megaphone by navigating to the directory it lives in and typing ./megaphone. It's packaged with bottle.py which is it's primary dependency. If you'd like to run it in a more production-ready manner you can use supervisor to manage it as a service.
+Start the service with:
+ python megaphone.py 
+
+If you'd like to run it in a more production-ready manner you can use supervisor to manage it as a service.
 
 Once megaphone is running, you register a check by posting JSON data consisting of {'id': 'some global id', 'url': 'http://some.status.url'}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main /status page. It will present all messages returned higher than OK in the message result on the main /status page.
 
@@ -102,3 +107,7 @@ RESULT: {"status": "Warning", "date": "2013-06-06T14:54:21CDT", "message": 
 GET: http://localhost:18001/check/show/bar:
 
 RESULT: {"status": "OK", "date": "2013-06-06T14:51:56CDT", "message": "Everything is groovy man.", "version": "1.0.0", "id": "bar"}
+
+# Tests:
+
+Now there are tests for the development of megaphone. Run them with nosetest.
