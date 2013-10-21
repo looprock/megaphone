@@ -7,6 +7,7 @@ import time
 import urllib2
 import shutil
 import socket
+import bottle
 from ConfigParser import SafeConfigParser
 
 
@@ -176,7 +177,7 @@ def list():
 
 @app.post('/check/add')
 def add_submit():
-    data = app.request.body.readline()
+    data = bottle.request.body.readline()
     if not data:
         app.abort(400, 'No data received')
     entity = json.loads(data)
@@ -193,7 +194,7 @@ def add_submit():
 
 @app.post('/check/del')
 def delcheck():
-    data = app.request.body.readline()
+    data = bottle.request.body.readline()
     if not data:
         app.abort(400, 'No data received')
     entity = json.loads(data)
