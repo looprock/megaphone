@@ -17,9 +17,10 @@ config = SafeConfigParser()
 config.read('%s/megaphone.conf' % _basedir)
 
 DEBUG = config.getboolean('settings', 'DEBUG')
-CACHE = config.get('settings', 'CACHE')
+CACHEDIR = config.get('settings', 'CACHEDIR')
+CACHEFILE = config.get('settings', 'CACHEFILE')
+CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
 PORT = config.get('settings', 'PORT')
-
 
 def bug(msg):
     if DEBUG:
@@ -85,7 +86,7 @@ ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
 root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
-if not os.path.isdir(CACHE):
+if not os.path.isdir(CACHEDIR):
     CACHE = "/tmp/megaphone.json"
 
 if os.path.isfile(CACHE) == True:
