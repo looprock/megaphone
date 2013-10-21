@@ -12,12 +12,16 @@ from ConfigParser import SafeConfigParser
 
 app = Bottle()
 
+_basedir = os.path.abspath(os.path.dirname(__file__))
+config = SafeConfigParser()
+config.read('%s/megaphone.conf' % _basedir)
 
-debug = "false"
+APP_DEBUG = config.getboolean('settings', 'APP_DEBUG')
+BOTTLE_DEBUG = config.getboolean('settings', 'BOTTLE_DEBUG')
 
 
 def bug(msg):
-    if debug == 'true':
+    if APP_DEBUG:
         print "DEBUG: %s" % msg
 
 # zookeeper reporting
@@ -298,4 +302,4 @@ def status():
 
 if __name__ == '__main__':
     # TODO make debug configurable
-    app.run(host='0.0.0.0', port=18001, debug=True)
+    app.run(host='0.0.0.0', port=18001, debug=BOTTLE_DEBUG)
