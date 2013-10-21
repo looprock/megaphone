@@ -16,12 +16,11 @@ _basedir = os.path.abspath(os.path.dirname(__file__))
 config = SafeConfigParser()
 config.read('%s/megaphone.conf' % _basedir)
 
-APP_DEBUG = config.getboolean('settings', 'APP_DEBUG')
-BOTTLE_DEBUG = config.getboolean('settings', 'BOTTLE_DEBUG')
+DEBUG = config.getboolean('settings', 'DEBUG')
 
 
 def bug(msg):
-    if APP_DEBUG:
+    if DEBUG:
         print "DEBUG: %s" % msg
 
 # zookeeper reporting
@@ -53,11 +52,11 @@ if enablezk == "true":
     zk = KazooClient(hosts=server)
 
     def loadzk(data):
-        if debug == "true":
+        if DEBUG:
             print data
         zk.start()
         for i in data.keys():
-            if debug == "true":
+            if DEBUG:
                 print data[i]
             path = '%s/envs/%s/applications/%s/content/servers/%s/megaphone/url' % (
                 zkroot, env, i, host)
@@ -69,10 +68,10 @@ if enablezk == "true":
                     raise
         zk.stop()
 else:
-    # if zookeeper is disabled, just output if debug == true
+    # if zookeeper is disabled, just output if DEBUG is set to True
     def loadzk(data):
         bug("zookeeper support not enabled, not submitting zNode data for record:")
-        if debug == "true":
+        if DEBUG:
             print data
 
 # end zookeeper reporting
@@ -301,5 +300,4 @@ def status():
         return data
 
 if __name__ == '__main__':
-    # TODO make debug configurable
-    app.run(host='0.0.0.0', port=18001, debug=BOTTLE_DEBUG)
+    app.run(host='0.0.0.0', port=18001, debug=DEBUG)
