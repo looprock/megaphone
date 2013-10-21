@@ -17,6 +17,8 @@ config = SafeConfigParser()
 config.read('%s/megaphone.conf' % _basedir)
 
 DEBUG = config.getboolean('settings', 'DEBUG')
+CACHE = config.get('settings', 'CACHE')
+PORT = config.get('settings', 'PORT')
 
 
 def bug(msg):
@@ -83,33 +85,31 @@ ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
 root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
-if os.path.isdir("/opt/megaphone/cache"):
-    cache = "/opt/megaphone/cache/cache.json"
-else:
-    cache = "/tmp/cache.json"
+if not os.path.isdir(CACHE):
+    CACHE = "/tmp/megaphone.json"
 
-if os.path.isfile(cache) == True:
-    bug("cache: %s" % cache)
-    with open(cache) as data_file:
+if os.path.isfile(CACHE) == True:
+    bug("CACHE: %s" % CACHE)
+    with open(CACHE) as data_file:
         checks = json.load(data_file)
         loadzk(checks)
 else:
     checks = {}
 
-# we shouldn't write to tmp by default because our cache.json could get
+# we shouldn't write to tmp by default because our megaphone.json could get
 # deleted by tmpwatch, etc.
-if cache == "/tmp/cache.json":
+if CACHE == "/tmp/megaphone.json":
     # i was originally going to use the --global override to inject a message, but decided against it
-    # checks['--global'] = "ERROR: cache set to %s, will likely get clobbered by tmpwatch!" % cache
-    print "WARNING: cache set to %s, could get clobbered by tmpwatch!" % cache
+    # checks['--global'] = "ERROR: cache set to %s, will likely get clobbered by tmpwatch!" % CACHE
+    print "WARNING: cache set to %s, could get clobbered by tmpwatch!" % CACHE
 
 
 def writecache(data):
     try:
-        if os.path.isfile(cache) == True:
-            backup = "%s.backup" % cache
-            shutil.copyfile(cache, backup)
-        with open(cache, 'w') as outfile:
+        if os.path.isfile(CACHE) == True:
+            backup = "%s.backup" % CACHE
+            shutil.copyfile(CACHE, backup)
+        with open(CACHE, 'w') as outfile:
             json.dump(data, outfile)
             loadzk(data)
     except:
@@ -300,4 +300,4 @@ def status():
         return data
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=18001, debug=DEBUG)
+    app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
