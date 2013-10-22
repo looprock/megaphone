@@ -76,9 +76,9 @@ def readstatus(url):
                 return pdata
 
 if check == "Null":
-	url = "http://%s:18001/status" % (ipaddr)
+	url = "http://%s:18001/" % (ipaddr)
 else:
-	url = "http://%s:18001/check/show/%s" % (ipaddr, check)
+	url = "http://%s:18001/checks/%s" % (ipaddr, check)
 
 data = readstatus(url)
 

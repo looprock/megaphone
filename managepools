@@ -2,8 +2,7 @@
 import json
 import sys
 import os
-import urllib
-import urllib2
+import httplib
 import socket
 import getopt
 
@@ -59,34 +58,29 @@ if ( add == "False" and delete == "False" ):
         usage()
         sys.exit()
 
+if server == "Null":
+	server = socket.gethostname()
+
+host = "%s:18001" % server
+
 if add == "True":
-	if server != "Null":
-		host = server
-		url = "http://%s:18001/check/add" % server
-	else:
-		url = "http://localhost:18001/check/add"
-		host = socket.gethostname()
-	staturl = "http://%s:%s/status" % (host,statport)
+	staturl = "http://%s:%s/status" % (server,statport)
 	blob = {"id": remainder[0], "url": staturl}
 	data = json.dumps(blob)
-	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
-	f = urllib2.urlopen(req)
-	response = f.read()
-	print response
-	f.close()
+	connection =  httplib.HTTPConnection(host)
+	body_content = 'BODY CONTENT GOES HERE'
+	connection.request('POST', '/checks', data)
+	result = connection.getresponse()
+	print "RESULT: %s - %s" % (result.status, result.reason)
 
 if delete == "True":
         if server != "Null":
-                host = server
-                url = "http://%s:18001/check/del" % server
+                host = "%s:18001" % server
         else:
-                url = "http://localhost:18001/check/del"
-                host = socket.gethostname()
-        staturl = "http://%s:%s/status" % (host,statport)
-        blob = {"id": remainder[0], "url": staturl}
-	data = json.dumps(blob)
-	req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
-	f = urllib2.urlopen(req)
-        response = f.read()
-        print response
-        f.close()
+                host = "%s:18001" % socket.gethostname()
+	path = "/checks/%s" % remainder[0]
+	connection =  httplib.HTTPConnection(host)
+	#connection.set_debuglevel(5)
+	connection.request('DELETE', path)
+	result = connection.getresponse()
+	print "RESULT: %s - %s" % (result.status, result.reason)

@@ -6,6 +6,6 @@ from megaphone import megaphone
 
 def test_get_status():
     app = TestApp(megaphone.app)
-    resp = app.get('/status')
+    resp = app.get('/')
 
     assert resp.status_int == 200

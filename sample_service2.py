@@ -9,8 +9,7 @@ import urllib
 import httplib
 
 data = json.dumps({'id': 'foo', 'url': 'http://localhost:8082/q/status'})
-#data = urllib.urlencode(data)
-url = "http://localhost:18001/service/add"
+url = "http://localhost:18001/checks"
 req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
 f = urllib2.urlopen(req)
 response = f.read()
