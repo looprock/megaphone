@@ -74,10 +74,6 @@ if add == "True":
 	print "RESULT: %s - %s" % (result.status, result.reason)
 
 if delete == "True":
-        if server != "Null":
-                host = "%s:18001" % server
-        else:
-                host = "%s:18001" % socket.gethostname()
 	path = "/checks/%s" % remainder[0]
 	connection =  httplib.HTTPConnection(host)
 	#connection.set_debuglevel(5)
