@@ -10,7 +10,6 @@ import socket
 import bottle
 from ConfigParser import SafeConfigParser
 
-
 app = Bottle()
 
 _basedir = os.path.abspath(os.path.dirname(__file__))
@@ -21,11 +20,16 @@ DEBUG = config.getboolean('settings', 'DEBUG')
 CACHEDIR = config.get('settings', 'CACHEDIR')
 CACHEFILE = config.get('settings', 'CACHEFILE')
 CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
+LISTEN = config.get('settings', 'LISTEN')
 PORT = config.get('settings', 'PORT')
+TIMEOUT = float(config.get('settings', 'TIMEOUT'))
 
 def bug(msg):
     if DEBUG:
         print "DEBUG: %s" % msg
+
+class MyException(Exception):
+    pass
 
 # zookeeper reporting
 # if we find ./zk.conf or /etc/zktools/zk.conf, we should try to report to
@@ -153,29 +157,26 @@ def readfile(fname):
 
 def readstatus(url):
     try:
-        data = json.load(urllib2.urlopen(url))
+        data = json.load(urllib2.urlopen(url, timeout = TIMEOUT))
         return data
     except:
         pdata = AutoVivification()
-        #pdata = {}
         pdata['status'] = "Critical"
         pdata['date'] = ts
-        msg = "Unable to communicate with %s!" % url
+        msg = "unable to connect to: %s" % url
         pdata['message'] = msg
         return pdata
 
 # list all megaphone checks
 
-
-@app.get('/check/list')
+@app.get('/checks')
 def list():
     data = AutoVivification()
     return checks
 
 # add a check: {"id": "ok_status", "url": "http://localhost:18999/status"}
 
-
-@app.post('/check/add')
+@app.post('/checks')
 def add_submit():
     data = bottle.request.body.readline()
     if not data:
@@ -191,35 +192,23 @@ def add_submit():
 
 # delete a check: {"id": "ok_status"}
 
-
-@app.post('/check/del')
-def delcheck():
-    data = bottle.request.body.readline()
-    if not data:
-        app.abort(400, 'No data received')
-    entity = json.loads(data)
-    if 'id' not in entity:
-        app.abort(409, 'No id specified')
+@app.delete('/checks/:s')
+def delcheck(s):
     try:
-        del checks[entity["id"]]
+        del checks[s]
         writecache(checks)
     except:
         app.abort(400, "Error deleting check!")
 
 # proxy the response of a status url megaphone is checking
 
-
-@app.get('/check/show/:s')
+@app.get('/checks/:s')
 def checkshow(s):
-    #data = AutoVivification()
-    #data = readstatus(checks[s])
     return readstatus(checks[s])
-    # return data
 
 # generate the main status output
 
-
-@app.get('/status')
+@app.get('/')
 def status():
     data = AutoVivification()
     # setting a global override. If there is a check with the id '--global',
@@ -302,4 +291,4 @@ def status():
         return data
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
+    app.run(host=LISTEN, port=PORT, debug=DEBUG, reloader=True)

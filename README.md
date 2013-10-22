@@ -29,14 +29,16 @@ Megaphone can be used push data to any central store you'd like to use. The init
 Install the requirements with pip lile
  pip install -r requirements.txt
 
+Configure megaphone.conf
+
 Start the service with:
  python megaphone.py 
 
 If you'd like to run it in a more production-ready manner you can use supervisor to manage it as a service.
 
-Once megaphone is running, you register a check by posting JSON data consisting of {'id': 'some global id', 'url': 'http://some.status.url'}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main /status page. It will present all messages returned higher than OK in the message result on the main /status page.
+Once megaphone is running, you register a check by posting JSON data consisting of {'id': 'some global id', 'url': 'http://some.status.url'}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main status page. It will present all messages returned higher than OK in the message result on the main status page.
 
-You can get a list of all the registered services by GETting /check/list. The entire JSON payload of a check can be retrieved by GETting /check/show/'id'
+You can get a list of all the registered services by GETting /checks. The entire JSON payload of a check can be retrieved by GETting /checks/'id'
 
 Below is an example session.
 
@@ -46,13 +48,13 @@ Below is an example session.
 
 ## Check initial status
 
-GET: http://localhost:18001/status
+METHOD GET: http://localhost:18001/
 
 RESULT: {"status": "Unknown", "date": "2013-06-06T14:49:26CDT", "message": "No services are registered!"}
 
 ## List current checks
 
-GET: http://localhost:18001/check/list
+METHOD GET: http://localhost:18001/checks
 
 RESULT: {}
 
@@ -60,19 +62,19 @@ RESULT: {}
 
 initiate this by using: ./sample_service.py OK
 
-PUT: http://localhost:18001/check/add
+METHOD POST: http://localhost:18001/checks
 
 DATA: {"id": "bar", "url": "http://localhost:8081/q/status"}
 
 ## Verify check
 
-GET: http://localhost:18001/check/list
+METHOD GET: http://localhost:18001/checks
 
 RESULT: {"bar": "http://localhost:8081/q/status"}
 
 ## Check new status
 
-GET: http://localhost:18001/status
+METHOD GET: http://localhost:18001/
 
 RESULT: {"status": "OK", "date": "2013-06-06T14:49:26CDT", "message": "Everything is OK!"}
 
@@ -80,34 +82,42 @@ RESULT: {"status": "OK", "date": "2013-06-06T14:49:26CDT", "message": "Ever
 
 initiate this by using: ./sample_service2.py Warning
 
-PUT: http://localhost:18001/check/add
+METHOD POST: http://localhost:18001/checks
 
 DATA: {"id": "foo", "url": "http://localhost:8082/q/status"}
 
 ## Verify new check
 
-GET: http://localhost:18001/check/list
+METHOD GET: http://localhost:18001/checks
 
 RESULT: {"foo": "http://localhost:8082/q/status", "bar": "http://localhost:8081/q/status"
 
 ## Review new status
 
-GET: http://localhost:18001/status
+METHOD GET: http://localhost:18001/
 
 RESULT: {"status": "Warning", "date": "2013-06-06T14:49:26CDT", "message": "foo:Warning:Houston, I think we have a problem."}
 
 ## View full status from check 'foo'
 
-GET: http://localhost:18001/check/show/foo:
+METHOD GET: http://localhost:18001/checks/foo:
 
 RESULT: {"status": "Warning", "date": "2013-06-06T14:54:21CDT", "message": "Houston, I think we have a problem.", "version": "2.0.0", "id": "foo"}
 
 ## View full status from check 'bar'
 
-GET: http://localhost:18001/check/show/bar:
+METHOD GET: http://localhost:18001/checks/bar:
 
 RESULT: {"status": "OK", "date": "2013-06-06T14:51:56CDT", "message": "Everything is groovy man.", "version": "1.0.0", "id": "bar"}
+
+## Delete check 'bar'
+
+METHOD DELETE: http://localhost:18001/checks/bar
 
 # Tests:
 
 Now there are tests for the development of megaphone. Run them with nosetest.
+
+# Errata
+
+megaphone can also update zookeeper (currently add only) with applications that register with it. You just need to create a config file (./zk.conf or /etc/zktools/zk.conf) with the right entries. 
