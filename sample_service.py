@@ -4,18 +4,29 @@ import sys
 import os
 from bottle import route, run, get
 import time
-import urllib
-import urllib2
+import httplib
 
-data = json.dumps({'id': 'bar', 'url': 'http://localhost:8081/q/status'})
-url = "http://localhost:18001/check"
-req = urllib2.Request(url, data, {'Content-Type': 'application/json'})
-f = urllib2.urlopen(req)
-response = f.read()
-f.close()
+server = "127.0.0.1"
+statport = "18081"
+host = "%s:18001" % server
+staturl = "http://%s:%s/status" % (server,statport)
+
+blob = {"id": "bar", "url": staturl}
+data = json.dumps(blob)
+connection =  httplib.HTTPConnection(host)
+connection.request('POST', '/checks', data)
+result = connection.getresponse()
+print "RESULT: %s - %s" % (result.status, result.reason)
 
 def usage():
         print "%s [status: OK,Unknown,Warning,Critical]" % (sys.argv[0])
+
+msgs = {
+	"OK": "Everything is groovy!",
+	"Unknown": "Unknown error!",
+	"Warning": "Houston, I think we have a problem.",
+	"Critical": "Danger Will Rogers! Danger!"
+}
 
 t = len(sys.argv)
 if t < 2:
@@ -24,9 +35,11 @@ if t < 2:
 else:  
         statusm = sys.argv[1]
 
+
+
 t = time.localtime()
 ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', t)
-rootdir = "/Users/dsl/code/python/metatron"
+rootdir = "./"
 
 # Change working directory so relative paths (and template lookup) work again
 root = os.path.join(os.path.dirname(__file__))
@@ -43,30 +56,14 @@ class AutoVivification(dict):
                         value = self[item] = type(self)()
                         return value
 
-def readfile(fname):
-    try:
-            f = open(fname, 'r')
-            o = f.read()
-            return re.sub(r'\0',' ',o)
-            f.close()
-    except:
-        msg = "ERROR: reading %s failed!" % fname
-        return msg
-
-@route('/hello')
-def hello():
-	return "Hello World!"
-
-@get('/q/status')
+@get('/status')
 def status():
 	data = AutoVivification()
-	#data['status'] = readfile(rootdir + '/test/status.txt')
-	#data['status'] = readfile('./test/status.txt')
 	data['id'] = "bar"
 	data['status'] = statusm
 	data['date'] = ts
-	data['message'] = "Everything is groovy man."
+	data['message'] = msgs[statusm]
 	data['version'] = "1.0.0"
 	return data
 
-run(host='localhost', port=8081, debug=True)
+run(host='localhost', port=statport, debug=True)

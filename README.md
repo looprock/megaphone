@@ -64,13 +64,13 @@ initiate this by using: ./sample_service.py OK
 
 METHOD POST: http://localhost:18001/checks
 
-DATA: {"id": "bar", "url": "http://localhost:8081/q/status"}
+DATA: {"id": "bar", "url": "http://localhost:18081/status"}
 
 ## Verify check
 
 METHOD GET: http://localhost:18001/checks
 
-RESULT: {"bar": "http://localhost:8081/q/status"}
+RESULT: {"bar": "http://localhost:18081/status"}
 
 ## Check new status
 
@@ -84,13 +84,13 @@ initiate this by using: ./sample_service2.py Warning
 
 METHOD POST: http://localhost:18001/checks
 
-DATA: {"id": "foo", "url": "http://localhost:8082/q/status"}
+DATA: {"id": "foo", "url": "http://localhost:18082/status"}
 
 ## Verify new check
 
 METHOD GET: http://localhost:18001/checks
 
-RESULT: {"foo": "http://localhost:8082/q/status", "bar": "http://localhost:8081/q/status"
+RESULT: {"foo": "http://localhost:18082/status", "bar": "http://localhost:18081/status"
 
 ## Review new status
 
