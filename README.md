@@ -66,6 +66,15 @@ METHOD POST: http://localhost:18001/checks
 
 DATA: {"id": "bar", "url": "http://localhost:18081/status"}
 
+If 'status' isn't in the root of your JSON output, you can pass a path in the url string by using a pipe after the url followed by a slash delimited path.
+
+for instance if your check output looks like this:
+
+{"megaphone": {"status": "OK", "date": "2014-02-01T23:36:38CST", "message": "Everything is OK!", "id": "ok"}}
+
+You can use this for your url:
+DATA: {"id": "bar", "url": "http://localhost:18081/status|megaphon/status"}
+
 ## Verify check
 
 METHOD GET: http://localhost:18001/checks

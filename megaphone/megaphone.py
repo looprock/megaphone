@@ -152,20 +152,33 @@ def readfile(fname):
         msg = "Critical: reading %s failed!" % fname
         return msg
 
-# read a megaphone compatable status url and return the object
-
-
+# read a megaphone compatible status url and return the object
 def readstatus(url):
     try:
-        data = json.load(urllib2.urlopen(url, timeout = TIMEOUT))
+        # this is to support status somewhere other than 'status' under the root of a service
+        # you can use this by adding |path/to/status to the url string
+        v = url.split("|")
+        if len(v) > 1:
+                tdata = json.load(urllib2.urlopen(v[0], timeout = TIMEOUT))
+                q = "tdata"
+                for i in v[1].split("/"):
+                        if i:  
+                                q += "['%s']" % i
+                data = AutoVivification()
+                data['status'] = eval(q)
+                data['date'] = ts
+                msg = "Status from path %s: %s" % (v[1], eval(q))
+                data['message'] = msg
+        else:  
+                data = json.load(urllib2.urlopen(url, timeout = TIMEOUT))
         return data
     except:
-        pdata = AutoVivification()
-        pdata['status'] = "Critical"
-        pdata['date'] = ts
+        data = AutoVivification()
+        data['status'] = "Critical"
+        data['date'] = ts
         msg = "unable to connect to: %s" % url
-        pdata['message'] = msg
-        return pdata
+        data['message'] = msg
+        return data
 
 # list all megaphone checks
 
