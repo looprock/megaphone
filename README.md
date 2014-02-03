@@ -67,7 +67,9 @@ METHOD POST: http://localhost:18001/checks
 DATA: {"id": "bar", "url": "http://localhost:18081/status"}
 
 If 'status' isn't in the root of your JSON output, you can pass two objects, 'addr' and 'jsonpath', inside 'url':
+
 addr - the full URL for your check, exactly what you'd pass inside url if status was in the root of your JSON output
+
 jsonpath - a slash delimited 'path' to you status. 
 
 for instance if your check output looks like this:
@@ -75,6 +77,7 @@ for instance if your check output looks like this:
 {"megaphone": {"status": "OK", "date": "2014-02-01T23:36:38CST", "message": "Everything is OK!", "id": "ok"}}
 
 You would use this to register your check:
+
 DATA: {"id": "bar", "url": {"addr": "http://localhost:18081/status", "jsonpath": "megaphone/status"}}
 
 ## Verify check
