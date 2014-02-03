@@ -156,19 +156,23 @@ def readfile(fname):
 def readstatus(url):
     try:
         # this is to support status somewhere other than 'status' under the root of a service
-        # you can use this by adding |path/to/status to the url string
-        v = url.split("|")
-        if len(v) > 1:
-                tdata = json.load(urllib2.urlopen(v[0], timeout = TIMEOUT))
-                q = "tdata"
-                for i in v[1].split("/"):
-                        if i:  
-                                q += "['%s']" % i
-                data = AutoVivification()
-                data['status'] = eval(q)
-                data['date'] = ts
-                msg = "Status from path %s: %s" % (v[1], eval(q))
-                data['message'] = msg
+        # {"id": "ok2_status", "url": {"addr": "http://localhost:18999/status", "jsonpath": "megaphone/status"}}
+        if isinstance(url, dict):
+                if 'addr' not in url:
+                        sys.exit("ERROR: couldn't find addr in url, nothing to check")
+                if 'jsonpath' in url:
+                        tdata = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
+                        q = "tdata"
+                        for i in url['jsonpath'].split("/"):
+                                if i:  
+                                        q += "['%s']" % i
+                        data = AutoVivification()
+                        data['status'] = eval(q)
+                        data['date'] = ts
+                        msg = "Status from path %s: %s" % (url['jsonpath'], eval(q))
+                        data['message'] = msg
+                else:  
+                        data = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
         else:  
                 data = json.load(urllib2.urlopen(url, timeout = TIMEOUT))
         return data
