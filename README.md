@@ -38,6 +38,8 @@ If you'd like to run it in a more production-ready manner you can use supervisor
 
 Once megaphone is running, you register a check by posting JSON data consisting of {'id': 'some global id', 'url': 'http://some.status.url'}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main status page. It will present all messages returned higher than OK in the message result on the main status page.
 
+The status presented to megaphone should conform to the standard followed by most monitoring systems: http://nagios.sourceforge.net/docs/3_0/pluginapi.html
+
 You can get a list of all the registered services by GETting /checks. The entire JSON payload of a check can be retrieved by GETting /checks/'id'
 
 Below is an example session.
