@@ -154,27 +154,40 @@ def readfile(fname):
 
 # read a megaphone compatible status url and return the object
 def readstatus(url):
+    validstatus = ["OK", "Unknown", "Warning", "Critical"]
     try:
         # this is to support status somewhere other than 'status' under the root of a service
         # {"id": "ok2_status", "url": {"addr": "http://localhost:18999/status", "jsonpath": "megaphone/status"}}
         if isinstance(url, dict):
+                data = AutoVivification()
                 if 'addr' not in url:
-                        sys.exit("ERROR: couldn't find addr in url, nothing to check")
-                if 'jsonpath' in url:
-                        tdata = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
-                        q = "tdata"
-                        for i in url['jsonpath'].split("/"):
-                                if i:  
-                                        q += "['%s']" % i
-                        data = AutoVivification()
-                        data['status'] = eval(q)
-                        data['date'] = ts
-                        msg = "Status from path %s: %s" % (url['jsonpath'], eval(q))
-                        data['message'] = msg
-                else:  
-                        data = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
+			data['status'] = "Critical"
+                        data['message'] = "ERROR: couldn't find addr in url, nothing to check"
+		else:
+                  	if 'jsonpath' in url:
+                        	tdata = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
+                        	q = "tdata"
+                        	for i in url['jsonpath'].split("/"):
+                                	if i:  
+                                        	q += "['%s']" % i
+                        	data['status'] = eval(q)
+                        	data['date'] = ts
+                        	msg = "Status from path %s: %s" % (url['jsonpath'], eval(q))
+                        	data['message'] = msg
+                  	else:  
+                        	data = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
+		  	if 'statusoverride' in url:
+				if url['statusoverride'] not in validstatus:
+					data['status'] = "Critical"
+					data['message'] = "ERROR: invalid status '%s' written to statusoverride!" % url['statusoverride']
+				else:
+					data['status'] = url['statusoverride']
+					data['message'] = "NOTICE: statusoverride used!"
         else:  
                 data = json.load(urllib2.urlopen(url, timeout = TIMEOUT))
+	if data["status"] not in validstatus:
+		data['status'] = "Critical"
+		data['message'] = "ERROR: status value '%s' not valid!" % data["status"]
         return data
     except:
         data = AutoVivification()

@@ -126,6 +126,13 @@ RESULT: {"status": "OK", "date": "2013-06-06T14:51:56CDT", "message": "Ever
 
 METHOD DELETE: http://localhost:18001/checks/bar
 
+## Overrides
+
+You can create a global Critical override on a megaphone (reflected at the http://localhost:18001/ level) by creating a check with the id "--global". This can be used to block a server at a global level, though this won't be reflected at the individual check status level. 
+
+If you're using the extended url object, you can also use 'statusoverride' to override the status of a check:<br>
+DATA: {"id": "bar", "url": {"addr": "http://localhost:18081/status", 'statusoverride': 'Critical'}}
+
 # Tests:
 
 Now there are tests for the development of megaphone. Run them with nosetest.
