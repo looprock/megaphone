@@ -53,13 +53,28 @@ if enablezk == "true":
     from kazoo.retry import KazooRetry
     from kazoo.exceptions import KazooException
     env = parser.get('default', 'env').strip()
-    zkserver = parser.get(env, 'server').strip()
-    zkport = parser.get(env, 'port').strip()
-    zkroot = parser.get(env, 'root').strip()
-    server = "%s:%s" % (zkserver, zkport)
+    use_exhibitor = parser.getboolean(env, 'use_exhibitor')
+    zkservers = parser.get(env, 'servers').strip()
+    if use_exhibitor:
+        exhibitor = "http://%s/exhibitor/v1/cluster/list/" % (zkservers)
+        try:
+                if DEBUG:
+                        print "Connecting to: %s" % exhibitor
+                servers = ""
+                zkdata = json.load(urllib2.urlopen(exhibitor, timeout = TIMEOUT))
+                for z in zkdata['servers']:
+                        servers += "%s:%s," % (z, zkdata['port'])
+                servers = servers[:-1]
+                if DEBUG:
+                        print servers
+        except:
+                print "ERROR: unable to get server list from exhibitor! Aborting!"
+                sys.exit(1)
+    else:
+        servers = "%s" % (zkservers)
     host = socket.getfqdn()
     kr = KazooRetry(max_tries=3)
-    zk = KazooClient(hosts=server)
+    zk = KazooClient(hosts=servers)
 
     def loadzk(data):
         if DEBUG:
