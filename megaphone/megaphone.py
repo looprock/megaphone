@@ -9,6 +9,8 @@ import shutil
 import socket
 import bottle
 from ConfigParser import SafeConfigParser
+import logging
+logging.basicConfig()
 
 app = Bottle()
 
@@ -55,7 +57,7 @@ if enablezk == "true":
     zkport = parser.get(env, 'port').strip()
     zkroot = parser.get(env, 'root').strip()
     server = "%s:%s" % (zkserver, zkport)
-    host = socket.gethostname()
+    host = socket.getfqdn()
     kr = KazooRetry(max_tries=3)
     zk = KazooClient(hosts=server)
 
@@ -66,15 +68,15 @@ if enablezk == "true":
         for i in data.keys():
             if DEBUG:
                 print data[i]
-            path = '%s/envs/%s/applications/%s/content/servers/%s/megaphone/url' % (
-                zkroot, env, i, host)
+            path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
             if kr(zk.exists, path) == None:
                 try:
-                    kr(zk.create, path, value=str(data[i]), makepath=True)
+                    kr(zk.create, path, ephemeral=True, makepath=True)
                 except KazooException:
                     cancelled = False
                     raise
-        zk.stop()
+	# removing this to support ephemeral nodes
+        #zk.stop()
 else:
     # if zookeeper is disabled, just output if DEBUG is set to True
     def loadzk(data):
