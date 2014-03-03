@@ -55,6 +55,7 @@ if enablezk == "true":
     env = parser.get('default', 'env').strip()
     use_exhibitor = parser.getboolean(env, 'use_exhibitor')
     zkservers = parser.get(env, 'servers').strip()
+    zkroot = parser.get(env, 'root').strip()
     if use_exhibitor:
         exhibitor = "http://%s/exhibitor/v1/cluster/list/" % (zkservers)
         try:
