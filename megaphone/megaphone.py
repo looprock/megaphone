@@ -55,27 +55,53 @@ if enablezk == "true":
     env = parser.get('default', 'env').strip()
     use_exhibitor = parser.getboolean(env, 'use_exhibitor')
     zkservers = parser.get(env, 'servers').strip()
-    zkroot = parser.get(env, 'root').strip()
     if use_exhibitor:
-        exhibitor = "http://%s/exhibitor/v1/cluster/list/" % (zkservers)
-        try:
-                if DEBUG:
-                        print "Connecting to: %s" % exhibitor
-                servers = ""
-                zkdata = json.load(urllib2.urlopen(exhibitor, timeout = TIMEOUT))
-                for z in zkdata['servers']:
-                        servers += "%s:%s," % (z, zkdata['port'])
-                servers = servers[:-1]
-                if DEBUG:
-                        print servers
-        except:
-                print "ERROR: unable to get server list from exhibitor! Aborting!"
-                sys.exit(1)
+    	exhibitor = "http://%s/exhibitor/v1/cluster/list/" % (zkservers)
+	try:
+		if DEBUG:
+			print "Connecting to: %s" % exhibitor
+		servers = ""
+    		zkdata = json.load(urllib2.urlopen(exhibitor, timeout = TIMEOUT))
+		for z in zkdata['servers']:
+			servers += "%s:%s," % (z, zkdata['port'])
+		servers = servers[:-1]
+		if DEBUG:
+			print servers
+	except:
+		print "ERROR: unable to get server list from exhibitor! Aborting!"
+		sys.exit(1)
     else:
-        servers = "%s" % (zkservers)
+    	servers = "%s" % (zkservers)
+    zkroot = parser.get(env, 'root').strip()
     host = socket.getfqdn()
     kr = KazooRetry(max_tries=3)
     zk = KazooClient(hosts=servers)
+
+    def storecache(path,data):
+	try:
+		if kr(zk.exists, path) == None:
+			kr(zk.create, path, value=data, makepath=True)
+		else:
+			kr(zk.set_data, path, value=data)
+	except KazooException:
+		cancelled = False
+		raise
+
+    def addzk(path):
+	if kr(zk.exists, path) == None:
+		try:
+			kr(zk.create, path, ephemeral=True, makepath=True)
+		except KazooException:
+			cancelled = False
+			raise
+
+    def rmzk(path):
+	if kr(zk.exists, path) != None:
+		try:
+			kr(zk.delete, path)
+		except KazooException:
+			cancelled = False
+			raise
 
     def loadzk(data):
         if DEBUG:
@@ -85,20 +111,19 @@ if enablezk == "true":
             if DEBUG:
                 print data[i]
             path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
-            if kr(zk.exists, path) == None:
-                try:
-                    kr(zk.create, path, ephemeral=True, makepath=True)
-                except KazooException:
-                    cancelled = False
-                    raise
-	# removing this to support ephemeral nodes
-        #zk.stop()
+	    addzk(path)	
 else:
     # if zookeeper is disabled, just output if DEBUG is set to True
+    def nozk(data):
+	bug("zookeeper support not enabled, not submitting zNode data for record:")
+	if DEBUG:
+		print data
+    def addzk(path):
+	nozk(path)
+    def rmzk(path):
+	nozk(path)
     def loadzk(data):
-        bug("zookeeper support not enabled, not submitting zNode data for record:")
-        if DEBUG:
-            print data
+	nozk(data)
 
 # end zookeeper reporting
 
@@ -136,6 +161,8 @@ def writecache(data):
         with open(CACHE, 'w') as outfile:
             json.dump(data, outfile)
             loadzk(data)
+	    #path = '%s/machines/%s/content/megaphone' % (zkroot, host)
+	    #storecache(path, data)
     except:
         # it's bad news if we can't create a cache file to reload on restart,
         # throw an error in megaphone!
@@ -245,6 +272,8 @@ def delcheck(s):
     try:
         del checks[s]
         writecache(checks)
+	path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, s, host)
+	rmzk(path)
     except:
         app.abort(400, "Error deleting check!")
 
@@ -282,6 +311,7 @@ def status():
         # for all checks we're monitoring, capture the state and the message
         # figure out something to do with date testing
         # like throw an error if current date is > 5min from returned date
+	    path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
             x = readstatus(checks[i])
             if x['status'] == "Warning":
                 if 'message' not in x.keys():
@@ -290,6 +320,7 @@ def status():
                     mymsg = x['message']
                 statusc['Warning'] = statusc['Warning'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+		rmzk(path)
             elif x['status'] == "Critical":
                 if 'message' not in x.keys():
                     mymsg = 'Detected Critical state [no message specified]'
@@ -297,9 +328,11 @@ def status():
                     mymsg = x['message']
                 statusc['Critical'] = statusc['Critical'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+		rmzk(path)
             elif x['status'] == "OK":
                 # Throw it away
                 throwaway = "ok"
+		addzk(path)
             else:
                 if 'message' not in x.keys():
                     mymsg = 'Detected Unknown state [no message specified]'
@@ -309,6 +342,7 @@ def status():
                 # going on
                 statusc['Unknown'] = statusc['Unknown'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+		rmzk(path)
 
         # set the status to the most critical value in the order: Unknown, Warning, Critical
         # i.e. if WARNING is the worst issue, i present that, but if ERROR and
