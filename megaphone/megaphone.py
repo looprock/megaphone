@@ -19,6 +19,7 @@ config = SafeConfigParser()
 config.read('%s/megaphone.conf' % _basedir)
 
 DEBUG = config.getboolean('settings', 'DEBUG')
+RELOADER = config.getboolean('settings', 'RELOADER')
 CACHEDIR = config.get('settings', 'CACHEDIR')
 CACHEFILE = config.get('settings', 'CACHEFILE')
 CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
@@ -373,4 +374,4 @@ def status():
         return data
 
 if __name__ == '__main__':
-    app.run(host=LISTEN, port=PORT, debug=DEBUG, reloader=True)
+    app.run(host=LISTEN, port=PORT, debug=DEBUG, reloader=RELOADER)
