@@ -312,7 +312,8 @@ def status():
         # for all checks we're monitoring, capture the state and the message
         # figure out something to do with date testing
         # like throw an error if current date is > 5min from returned date
-	    path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
+	    if enablezk == "true":
+	    	path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
             x = readstatus(checks[i])
             if x['status'] == "Warning":
                 if 'message' not in x.keys():
@@ -321,7 +322,8 @@ def status():
                     mymsg = x['message']
                 statusc['Warning'] = statusc['Warning'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-		rmzk(path)
+	    	if enablezk == "true":
+			rmzk(path)
             elif x['status'] == "Critical":
                 if 'message' not in x.keys():
                     mymsg = 'Detected Critical state [no message specified]'
@@ -329,11 +331,13 @@ def status():
                     mymsg = x['message']
                 statusc['Critical'] = statusc['Critical'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-		rmzk(path)
+	    	if enablezk == "true":
+			rmzk(path)
             elif x['status'] == "OK":
                 # Throw it away
                 throwaway = "ok"
-		addzk(path)
+	    	if enablezk == "true":
+			addzk(path)
             else:
                 if 'message' not in x.keys():
                     mymsg = 'Detected Unknown state [no message specified]'
@@ -343,7 +347,8 @@ def status():
                 # going on
                 statusc['Unknown'] = statusc['Unknown'] + 1
                 msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-		rmzk(path)
+	    	if enablezk == "true":
+			rmzk(path)
 
         # set the status to the most critical value in the order: Unknown, Warning, Critical
         # i.e. if WARNING is the worst issue, i present that, but if ERROR and
