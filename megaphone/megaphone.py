@@ -10,6 +10,8 @@ import socket
 import bottle
 from ConfigParser import SafeConfigParser
 import logging
+from threading import Thread
+import multiprocessing
 logging.basicConfig()
 
 app = Bottle()
@@ -19,6 +21,7 @@ config = SafeConfigParser()
 config.read('%s/megaphone.conf' % _basedir)
 
 DEBUG = config.getboolean('settings', 'DEBUG')
+QUIET = config.getboolean('settings', 'QUIET')
 RELOADER = config.getboolean('settings', 'RELOADER')
 CACHEDIR = config.get('settings', 'CACHEDIR')
 CACHEFILE = config.get('settings', 'CACHEFILE')
@@ -26,54 +29,57 @@ CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
 LISTEN = config.get('settings', 'LISTEN')
 PORT = config.get('settings', 'PORT')
 TIMEOUT = float(config.get('settings', 'TIMEOUT'))
+HEARTBEAT = float(config.get('settings', 'HEARTBEAT'))
+DEFAULT_ZK_CONF = config.get('settings', 'DEFAULT_ZK_CONF')
+
+# if debug is enabled, we want to make sure quiet is set to false
+if DEBUG:
+	QUIET = False
 
 def bug(msg):
     if DEBUG:
         print "DEBUG: %s" % msg
 
+def returnservers(serverlist,port):
+    servers = ""
+    for s in serverlist:
+        servers += "%s:%s," % (s, port)
+    bug("Server String: %s" % (servers[:-1]))
+    return servers[:-1]
+
 class MyException(Exception):
     pass
 
 # zookeeper reporting
-# if we find ./zk.conf or /etc/zktools/zk.conf, we should try to report to
-# zookeeper
+# if we find ./zk.conf or DEFAULT_ZK_CONF, we should try to report to zookeeper
 enablezk = "false"
-if os.path.exists('./zk.conf'):
+if os.path.exists('./zk.json'):
     enablezk = "true"
-    bug("using config ./zk.conf")
-    parser = SafeConfigParser()
-    parser.read('./zk.conf')
-elif os.path.exists('/etc/zktools/zk.conf'):
+    bug("using config ./zk.json")
+    with open('./zk.json') as data_file:
+        zkconfig = json.load(data_file)
+elif os.path.exists(DEFAULT_ZK_CONF):
     enablezk = "true"
-    bug("Using config /etc/zktools/zk.conf")
-    parser = SafeConfigParser()
-    parser.read('/etc/zktools/zk.conf')
+    bug("Using config %s" % DEFAULT_ZK_CONF)
+    with open(DEFAULT_ZK_CONF) as data_file:
+        zkconfig = json.load(data_file)
 
 if enablezk == "true":
     from kazoo.client import KazooClient
     from kazoo.retry import KazooRetry
     from kazoo.exceptions import KazooException
-    env = parser.get('default', 'env').strip()
-    use_exhibitor = parser.getboolean(env, 'use_exhibitor')
-    zkservers = parser.get(env, 'servers').strip()
-    if use_exhibitor:
-    	exhibitor = "http://%s/exhibitor/v1/cluster/list/" % (zkservers)
-	try:
-		if DEBUG:
-			print "Connecting to: %s" % exhibitor
-		servers = ""
-    		zkdata = json.load(urllib2.urlopen(exhibitor, timeout = TIMEOUT))
-		for z in zkdata['servers']:
-			servers += "%s:%s," % (z, zkdata['port'])
-		servers = servers[:-1]
-		if DEBUG:
-			print servers
-	except:
-		print "ERROR: unable to get server list from exhibitor! Aborting!"
-		sys.exit(1)
+    env = zkconfig['defaultName']
+    if zkconfig[env]['exhibitor']:
+    	try:
+            bug("Connecting to: %s" % zkconfig[env]['exhibitor'])
+            zkdata = json.load(urllib2.urlopen(zkconfig[env]['exhibitor'], timeout = TIMEOUT))
+            servers = returnservers(zkdata['servers'], zkdata['port'])
+    	except:
+    		print "ERROR: unable to get server list from exhibitor! Aborting!"
+    		sys.exit(1)
     else:
-    	servers = "%s" % (zkservers)
-    zkroot = parser.get(env, 'root').strip()
+    	servers = returnservers(zkconfig[env]['servers'], zkconfig[env]['port'])
+    zkroot = zkconfig[env]['configRoot']
     host = socket.getfqdn()
     kr = KazooRetry(max_tries=3)
     zk = KazooClient(hosts=servers)
@@ -243,6 +249,104 @@ def readstatus(url):
         data['message'] = msg
         return data
 
+def getallstatus():
+    data = AutoVivification()
+    # setting a global override. If there is a check with the id '--global',
+    # only respect that. Always return Critical with a message of whatever is
+    # in the url object
+    if "--global" in checks.keys():
+        data['status'] = "Critical"
+        data['message'] = checks['--global']
+        data['date'] = ts
+        return data
+    # if there's no global override, parse the rest of the checks.
+    else:
+        # trying to conform to current monitoring status guidelines
+        # http://nagiosplug.sourceforge.net/developer-guidelines.html#PLUGOUTPUT
+        statusc = {
+            "Warning":  0,
+            "Critical":  0,
+            "Unknown":  0,
+        }
+        E = 0
+        msg = ""
+        for i in checks.keys():
+        # for all checks we're monitoring, capture the state and the message
+        # figure out something to do with date testing
+        # like throw an error if current date is > 5min from returned date
+            if enablezk == "true":
+                path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
+            x = readstatus(checks[i])
+            if x['status'] == "Warning":
+                if 'message' not in x.keys():
+                    mymsg = 'Detected Warning state [no message specified]'
+                else:
+                    mymsg = x['message']
+                statusc['Warning'] = statusc['Warning'] + 1
+                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+                if enablezk == "true":
+                    rmzk(path)
+            elif x['status'] == "Critical":
+                if 'message' not in x.keys():
+                    mymsg = 'Detected Critical state [no message specified]'
+                else:
+                    mymsg = x['message']
+                statusc['Critical'] = statusc['Critical'] + 1
+                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+                if enablezk == "true":
+                    rmzk(path)
+            elif x['status'] == "OK":
+                # Throw it away
+                throwaway = "ok"
+                if enablezk == "true":
+                    addzk(path)
+            else:
+                if 'message' not in x.keys():
+                    mymsg = 'Detected Unknown state [no message specified]'
+                else:
+                    mymsg = x['message']
+                # things aren't Warning, Critical, or OK so something else is
+                # going on
+                statusc['Unknown'] = statusc['Unknown'] + 1
+                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
+                if enablezk == "true":
+                    rmzk(path)
+
+        # set the status to the most critical value in the order: Unknown, Warning, Critical
+        # i.e. if WARNING is the worst issue, i present that, but if ERROR and
+        # WARNING are both present use ERROR
+        if statusc['Unknown'] > 0:
+            data['status'] = "Unknown"
+            E = 1
+        if statusc['Warning'] > 0:
+            data['status'] = "Warning"
+            E = 1
+        if statusc['Critical'] > 0:
+            data['status'] = "Critical"
+            E = 1
+
+        # trim the value of msg since we're appending and adding ';' at the end
+        # for errors
+        if E > 0:
+            data['message'] = msg[:-1]
+        else:
+            if len(checks.keys()) > 0:
+                # we didn't find any error states, so we're OK
+                data['status'] = "OK"
+                data['message'] = "Everything is OK!"
+            else:
+                data['status'] = "Unknown"
+                data['message'] = "No checks are registered!"
+        data['date'] = ts
+        return data
+
+def print_time(threadName, counter):
+    while counter:
+        if exitFlag:
+            thread.exit()
+        print "%s: %s" % (threadName, time.ctime(time.time()))
+        counter -= 1
+
 # list all megaphone checks
 
 @app.get('/checks')
@@ -273,8 +377,9 @@ def delcheck(s):
     try:
         del checks[s]
         writecache(checks)
-	path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, s, host)
-	rmzk(path)
+        if enablezk == "true":
+	       path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, s, host)
+	       rmzk(path)
     except:
         app.abort(400, "Error deleting check!")
 
@@ -288,95 +393,28 @@ def checkshow(s):
 
 @app.get('/')
 def status():
-    data = AutoVivification()
-    # setting a global override. If there is a check with the id '--global',
-    # only respect that. Always return Critical with a message of whatever is
-    # in the url object
-    if "--global" in checks.keys():
-        data['status'] = "Critical"
-        data['message'] = checks['--global']
-        data['date'] = ts
-        return data
-    # if there's no global override, parse the rest of the checks.
-    else:
-        # trying to conform to current monitoring status guidelines
-        # http://nagiosplug.sourceforge.net/developer-guidelines.html#PLUGOUTPUT
-        statusc = {
-            "Warning":  0,
-            "Critical":  0,
-            "Unknown":  0,
-        }
-        E = 0
-        msg = ""
-        for i in checks.keys():
-        # for all checks we're monitoring, capture the state and the message
-        # figure out something to do with date testing
-        # like throw an error if current date is > 5min from returned date
-	    if enablezk == "true":
-	    	path = '%s/envs/%s/applications/%s/servers/%s' % (zkroot, env, i, host)
-            x = readstatus(checks[i])
-            if x['status'] == "Warning":
-                if 'message' not in x.keys():
-                    mymsg = 'Detected Warning state [no message specified]'
-                else:
-                    mymsg = x['message']
-                statusc['Warning'] = statusc['Warning'] + 1
-                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-	    	if enablezk == "true":
-			rmzk(path)
-            elif x['status'] == "Critical":
-                if 'message' not in x.keys():
-                    mymsg = 'Detected Critical state [no message specified]'
-                else:
-                    mymsg = x['message']
-                statusc['Critical'] = statusc['Critical'] + 1
-                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-	    	if enablezk == "true":
-			rmzk(path)
-            elif x['status'] == "OK":
-                # Throw it away
-                throwaway = "ok"
-	    	if enablezk == "true":
-			addzk(path)
-            else:
-                if 'message' not in x.keys():
-                    mymsg = 'Detected Unknown state [no message specified]'
-                else:
-                    mymsg = x['message']
-                # things aren't Warning, Critical, or OK so something else is
-                # going on
-                statusc['Unknown'] = statusc['Unknown'] + 1
-                msg += "%s:%s:%s|" % (i, x['status'], mymsg)
-	    	if enablezk == "true":
-			rmzk(path)
+    return getallstatus()
 
-        # set the status to the most critical value in the order: Unknown, Warning, Critical
-        # i.e. if WARNING is the worst issue, i present that, but if ERROR and
-        # WARNING are both present use ERROR
-        if statusc['Unknown'] > 0:
-            data['status'] = "Unknown"
-            E = 1
-        if statusc['Warning'] > 0:
-            data['status'] = "Warning"
-            E = 1
-        if statusc['Critical'] > 0:
-            data['status'] = "Critical"
-            E = 1
 
-        # trim the value of msg since we're appending and adding ';' at the end
-        # for errors
-        if E > 0:
-            data['message'] = msg[:-1]
-        else:
-            if len(checks.keys()) > 0:
-                # we didn't find any error states, so we're OK
-                data['status'] = "OK"
-                data['message'] = "Everything is OK!"
-            else:
-                data['status'] = "Unknown"
-                data['message'] = "No checks are registered!"
-        data['date'] = ts
-        return data
+def heartbeat():
+    try:
+        p = multiprocessing.current_process()
+        print 'INFO: Starting ', p.name, p.pid
+        sys.stdout.flush()
+        while True:
+            time.sleep(HEARTBEAT)
+            hbt = time.strftime('%Y-%m-%dT%H:%M:%S%Z', time.localtime())
+            d = json.load(urllib2.urlopen("http://localhost:18001", timeout = TIMEOUT))
+            bug("%s: heartbeat ran: %s" % (hbt, d))
+    except KeyboardInterrupt:
+        sys.exit("Warning: heartbeat process %s aborted by Ctrl-C!" % p.pid)
 
 if __name__ == '__main__':
-    app.run(host=LISTEN, port=PORT, debug=DEBUG, reloader=RELOADER)
+    try:
+        if enablezk == "true":
+            p = multiprocessing.Process(name='heartbeat', target=heartbeat)
+            p.daemon = True
+            p.start()
+        app.run(host=LISTEN, port=PORT, debug=DEBUG, reloader=RELOADER, quiet=QUIET)
+    except KeyboardInterrupt:
+        sys.exit("Aborted by Ctrl-C!")

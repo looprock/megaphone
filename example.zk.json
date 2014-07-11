@@ -1,0 +1,43 @@
+{
+	"defaultName": "localhost",
+        "localhost" : {
+		"exhibitor": null,
+                "servers": ["localhost"],
+                "port": 2181,
+                "username": null,
+                "password": null,
+                "configRoot": "/"
+        },
+        "_default" : {
+		"exhibitor": "http://alpha.zk.yourcompany.com/exhibitor/v1/cluster/list/",
+                "servers": ["alpha.zk.yourcompany.com"],
+                "port": 2181,
+                "username": null,
+                "password": null,
+                "configRoot": "/alpha"
+        },
+	"alpha" : {
+		"exhibitor": "http://alpha.zk.yourcompany.com/exhibitor/v1/cluster/list/",
+                "servers": ["alpha.zk.yourcompany.com"],
+		"port": 2181,
+		"username": null,
+		"password": null,
+		"configRoot": "/alpha"
+	},
+	"beta" : {
+		"exhibitor": "http://beta.zk.yourcompany.com/exhibitor/v1/cluster/list/",
+                "servers": ["beta.zk.yourcompany.com"],
+		"port": 2181,
+		"username": null,
+		"password": null,
+		"configRoot": "/beta"
+	},
+	"prod" : {
+		"exhibitor": null,
+                "servers": ["zk1.yourcompany.com","zk2.yourcompany.com","zk3.yourcompany.com"],
+		"port": 2181,
+		"username": null,
+		"password": null,
+		"configRoot": "/prod"
+	}
+}
