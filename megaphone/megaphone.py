@@ -33,8 +33,8 @@ HEARTBEAT = float(config.get('settings', 'HEARTBEAT'))
 DEFAULT_ZK_CONF = config.get('settings', 'DEFAULT_ZK_CONF')
 
 # if debug is enabled, we want to make sure quiet is set to false
-if DEBUG:
-	QUIET = False
+#if DEBUG:
+#	QUIET = False
 
 def bug(msg):
     if DEBUG:
