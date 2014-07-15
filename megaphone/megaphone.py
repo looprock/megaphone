@@ -227,26 +227,26 @@ def readstatus(name,url,q):
 				bug("parsing jsonpath and addr in url: jsonpath: %s, addr: %s" % (url['jsonpath'],url['addr']))
 				try:
 					tdata = json.load(urllib2.urlopen(url['addr'], timeout = TIMEOUT))
+					v = "tdata"
+					for i in url['jsonpath'].split("/"):
+						bug("i: %s" % i)
+						if i:  
+							v += "['%s']" % i
+					bug("eval type:")
+					if DEBUG:
+						print type(eval(v))
+						print type(eval(v).encode('ascii','ignore'))
+					data['status'] = eval(v)
+					data['date'] = ts
+					msg = "Status from path %s: %s" % (url['jsonpath'], data['status'])
+					bug(msg)
+					data['message'] = msg
 				except:
-					msg = "error collecting results from jsonpath: %s, addr: %s" % (url['jsonpath'],url['addr'])
+					msg = "error collecting results from addr: %s, jsonpath: %s" % (url['addr'],url['jsonpath'])
 					bug(msg)
 					data['status'] = "Critical"
 					data['date'] = ts
 					data['message'] = msg
-				v = "tdata"
-				for i in url['jsonpath'].split("/"):
-					bug("i: %s" % i)
-					if i:  
-						v += "['%s']" % i
-				bug("eval type:")
-				if DEBUG:
-					print type(eval(v))
-					print type(eval(v).encode('ascii','ignore'))
-				data['status'] = eval(v)
-				data['date'] = ts
-				msg = "Status from path %s: %s" % (url['jsonpath'], data['status'])
-				bug(msg)
-				data['message'] = msg
 			else:
 				bug("no jsonpath detected in url, using only addr path")
 				try:
@@ -469,9 +469,15 @@ def checkshow(s):
 			if 'addr' not in checks[s]:
 				return "Sorry, can't find a valid endpoint in your check!"
 			else:
-				return json.load(urllib2.urlopen(checks[s]['addr'], timeout = TIMEOUT))
+				try:
+					return json.load(urllib2.urlopen(checks[s]['addr'], timeout = TIMEOUT))
+				except:
+					return "Error connecting to: %s" % checks[s]['addr']
 		else:
-			return json.load(urllib2.urlopen(checks[s], timeout = TIMEOUT))
+			try:
+				return json.load(urllib2.urlopen(checks[s], timeout = TIMEOUT))
+			except:
+				return "Error connecting to: %s" % checks[s]['addr']
 
 # generate the main status output
 
