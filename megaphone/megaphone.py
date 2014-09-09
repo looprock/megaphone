@@ -2,7 +2,8 @@
 import json
 import sys
 import os
-from bottle import Bottle
+import re
+from bottle import Bottle, HTTPResponse
 import time
 import urllib2
 import shutil
@@ -422,6 +423,23 @@ def print_time(threadName, counter):
 		print "%s: %s" % (threadName, time.ctime(time.time()))
 		counter -= 1
 
+# This is to support the /machine route. This is to support legacy status checks
+def check_machine():
+        status_file = "/machine"
+        if os.path.isfile(status_file):
+                status = readfile(status_file).strip()
+                bug(status)
+                if status != "1":
+                        msg = "System is disabled via %s file!" % status_file
+                        result = {"code": 500, "body": { "status": "Critical", "message": msg }}
+                else:
+                        result = {"code": 200, "body": { "status": "OK", "message": "Everything is OK!" }}
+        else:
+                msg = "Status file %s does not exit!" % status_file
+                result = {"code": 500, "body": { "status": "Critical", "message": msg }}
+        bug(result)
+        return result
+
 # list all megaphone checks
 
 @app.get('/checks')
@@ -478,6 +496,17 @@ def checkshow(s):
 				return json.load(urllib2.urlopen(checks[s], timeout = TIMEOUT))
 			except:
 				return "Error connecting to: %s" % checks[s]['addr']
+
+# route to support legacy status mechanism
+@app.get('/machine')
+def meachine():
+        data = AutoVivification()
+        machine_result = check_machine()
+        data['id'] = 'machine'
+        data['status'] = machine_result["body"]["status"]
+        data['date'] = ts
+        data['message'] = machine_result["body"]["message"]
+        return HTTPResponse(status=machine_result["code"], body=json.dumps(data))
 
 # generate the main status output
 
