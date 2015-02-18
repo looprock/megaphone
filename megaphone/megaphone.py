@@ -538,6 +538,9 @@ if __name__ == '__main__':
 			p = multiprocessing.Process(name='heartbeat', target=heartbeat)
 			p.daemon = True
 			p.start()
-		app.run(host=LISTEN, port=PORT, debug=DEBUG, quiet=QUIET)
+		if WSGISERVER != 'default':
+			app.run(host=LISTEN, port=PORT, debug=DEBUG, quiet=QUIET, server=WSGISERVER)
+		else:
+			app.run(host=LISTEN, port=PORT, debug=DEBUG, quiet=QUIET)
 	except KeyboardInterrupt:
 		sys.exit("Aborted by Ctrl-C!")
