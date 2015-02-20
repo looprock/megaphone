@@ -488,7 +488,11 @@ def checkshow(s):
 				return "Sorry, can't find a valid endpoint in your check!"
 			else:
 				try:
-					return json.load(urllib2.urlopen(checks[s]['addr'], timeout = TIMEOUT))
+					res = json.load(urllib2.urlopen(checks[s]['addr'], timeout = TIMEOUT))
+					if 'statusoverride' in checks[s]:
+						res['status'] = checks[s]['statusoverride']
+						res['message'] = "NOTICE: statusoverride used!"
+					return res
 				except:
 					return "Error connecting to: %s" % checks[s]['addr']
 		else:
