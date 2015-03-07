@@ -31,7 +31,7 @@ if logging == "True":
 	for i in sys.argv:
 		log.write("arg %s: %s\n" % (str(c), sys.argv[c]))
 		c = c + 1
-ipaddr = "Null"
+ipaddr = "localhost"
 check = "Null"
 
 try:                                
