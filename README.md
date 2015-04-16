@@ -26,7 +26,7 @@ By running this locally you get access to process lists and local commands for t
 Since anything can be used to poll data from zookeeper, it can be stored anywhere. If I ever have time I'd like to include some framework for adding reporting, but it's not on the current roadmap.
 
 ## How do I use Megaphone?
-Install the requirements with pip lile
+Install the requirements with pip file
  pip install -r requirements.txt
 
 Configure megaphone.conf
