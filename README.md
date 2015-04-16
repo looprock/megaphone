@@ -36,7 +36,7 @@ Start the service with:
 
 If you'd like to run it in a more production-ready manner you can use supervisor to manage it as a service.
 
-Once megaphone is running, you register a check by posting JSON data consisting of {'id': 'some global id', 'url': 'http://some.status.url'}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main status page. It will present all messages returned higher than OK in the message result on the main status page.
+Once megaphone is running, you register a check by posting JSON data consisting of {"id": "some global id", "url": "http://some.status.url"}. Megaphone currently only pays attention to 'status' (in order of least to most critical: OK, Unknown, Warning, Critical) and 'message'. It will then process each check and present the most critical result returned from any one check as the result in the main status page. It will present all messages returned higher than OK in the message result on the main status page.
 
 The status presented to megaphone should conform to the standard followed by most monitoring systems: http://nagios.sourceforge.net/docs/3_0/pluginapi.html
 
@@ -131,7 +131,7 @@ METHOD DELETE: http://localhost:18001/checks/bar
 You can create a global Critical override on a megaphone (reflected at the http://localhost:18001/ level) by creating a check with the id "--global". This can be used to block a server at a global level, though this won't be reflected at the individual check status level. 
 
 If you're using the extended url object, you can also use 'statusoverride' to override the status of a check:<br>
-DATA: {"id": "bar", "url": {"addr": "http://localhost:18081/status", 'statusoverride': 'Critical'}}
+DATA: {"id": "bar", "url": {"addr": "http://localhost:18081/status", "statusoverride": "Critical"}}
 
 # Tests:
 

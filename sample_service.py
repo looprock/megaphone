@@ -24,7 +24,7 @@ def usage():
 msgs = {
 	"OK": "Everything is groovy!",
 	"Unknown": "Unknown error!",
-	"Warning": "Houston, I think we have a problem.",
+	"Warning": "Houstin, I think we have a warning!",
 	"Critical": "Danger Will Rogers! Danger!"
 }
 
