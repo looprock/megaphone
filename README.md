@@ -23,7 +23,7 @@ By running this locally you get access to process lists and local commands for t
 
 ## What about centralizing the data?
 
-Megaphone can be used push data to any central store you'd like to use. The initial target will be zookeeper, but it could just as easily be pushed or pulled into a nosql, RDBMS, or other solution.
+Since anything can be used to poll data from zookeeper, it can be stored anywhere. If I ever have time I'd like to include some framework for adding reporting, but it's not on the current roadmap.
 
 ## How do I use Megaphone?
 Install the requirements with pip lile
@@ -136,7 +136,3 @@ DATA: {"id": "bar", "url": {"addr": "http://localhost:18081/status", "statusover
 # Tests:
 
 Now there are tests for the development of megaphone. Run them with nosetest.
-
-# Errata
-
-megaphone can also update zookeeper (currently add only) with applications that register with it. You just need to create a config file (./zk.conf or /etc/zktools/zk.conf) with the right entries. 
