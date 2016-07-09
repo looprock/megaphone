@@ -1,13 +1,14 @@
 #!/usr/bin/env python
+"""Megaphone is an alerting consolidation service."""
+
 import json
 import sys
 import os
 import re
-from bottle import Bottle, HTTPResponse
+from bottle import Bottle
 import time
 import urllib2
 import shutil
-import socket
 import bottle
 from ConfigParser import SafeConfigParser
 import logging
@@ -18,49 +19,111 @@ app = Bottle()
 
 _basedir = os.path.abspath(os.path.dirname(__file__))
 config = SafeConfigParser()
-config.read('%s/megaphone.conf' % _basedir)
+try:
+    config.read('%s/megaphone.conf' % _basedir)
+    DEBUG = config.getboolean('settings', 'DEBUG')
+    QUIET = config.getboolean('settings', 'QUIET')
+    CACHEDIR = config.get('settings', 'CACHEDIR')
+    CACHEFILE = config.get('settings', 'CACHEFILE')
+    WSGISERVER = config.get('settings', 'WSGISERVER')
+    CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
+    LISTEN = config.get('settings', 'LISTEN')
+    PORT = config.get('settings', 'PORT')
+    TIMEOUT = float(config.get('settings', 'TIMEOUT'))
+except:
+    print "INFO: unable to find config file, skipping"
 
-DEBUG = config.getboolean('settings', 'DEBUG')
-QUIET = config.getboolean('settings', 'QUIET')
-CACHEDIR = config.get('settings', 'CACHEDIR')
-CACHEFILE = config.get('settings', 'CACHEFILE')
-WSGISERVER = config.get('settings', 'WSGISERVER')
-CACHE = "%s/%s" % (CACHEDIR, CACHEFILE)
-LISTEN = config.get('settings', 'LISTEN')
-PORT = config.get('settings', 'PORT')
-TIMEOUT = float(config.get('settings', 'TIMEOUT'))
+
+if "MEGAPHONE_DEBUG" in os.environ:
+    DEBUG = os.environ["MEGAPHONE_DEBUG"]
+
+if "MEGAPHONE_QUIET" in os.environ:
+    QUIET = os.environ["MEGAPHONE_QUIET"]
+
+if "MEGAPHONE_WSGISERVER" in os.environ:
+    WSGISERVER = os.environ["MEGAPHONE_WSGISERVER"]
+
+if "MEGAPHONE_CACHE" in os.environ:
+    CACHE = os.environ["MEGAPHONE_CACHE"]
+
+if "MEGAPHONE_LISTEN" in os.environ:
+    LISTEN = os.environ["MEGAPHONE_LISTEN"]
+
+if "MEGAPHONE_PORT" in os.environ:
+    PORT = os.environ["MEGAPHONE_PORT"]
+
+if "MEGAPHONE_TIMEOUT" in os.environ:
+    TIMEOUT = os.environ["MEGAPHONE_TIMEOUT"]
+
+try:
+    DEBUG
+except:
+    DEBUG = False
+
+try:
+    QUIET
+except:
+    QUIET = True
+
+try:
+    WSGISERVER
+except:
+    WSGISERVER = "default"
+
+try:
+    LISTEN
+except:
+    LISTEN = "0.0.0.0"
+
+try:
+    CACHE
+except:
+    CACHE = "/tmp/megaphone.json"
+
+try:
+    PORT
+except:
+    PORT = "18001"
+
+try:
+    TIMEOUT
+except:
+    TIMEOUT = 10
+
 
 def bug(msg):
-	if DEBUG:
-		print "DEBUG: %s" % msg
+    """Print debug output."""
+    if DEBUG:
+        print "DEBUG: %s" % msg
+
 
 class MyException(Exception):
-	pass
- 
+    """Support unittesting."""
+
+    pass
+
+
 ts = time.strftime('%Y-%m-%dT%H:%M:%S%Z', time.localtime())
 
 # Change working directory so relative paths (and template lookup) work again
 root = os.path.join(os.path.dirname(__file__))
 sys.path.insert(0, root)
 
-if not os.path.isdir(CACHEDIR):
-	CACHE = "/tmp/megaphone.json"
-
-if os.path.isfile(CACHE) == True:
-	bug("CACHE: %s" % CACHE)
-	with open(CACHE) as data_file:
-		checks = json.load(data_file)
+if os.path.isfile(CACHE):
+    bug("CACHE: %s" % CACHE)
+    with open(CACHE) as data_file:
+        checks = json.load(data_file)
 else:
-	checks = {}
+    checks = {}
 
 # we shouldn't write to tmp by default because our megaphone.json could get deleted by tmpwatch
 if CACHE == "/tmp/megaphone.json":
-	print "WARNING: cache set to %s, could get clobbered by tmpwatch!" % CACHE
+    print "WARNING: cache set to %s, could get clobbered by tmpwatch!" % CACHE
 
 
 def writecache(data):
 	try:
-		if os.path.isfile(CACHE) == True:
+		if os.path.isfile(CACHE):
 			backup = "%s.backup" % CACHE
 			shutil.copyfile(CACHE, backup)
 		with open(CACHE, 'w') as outfile:
